@@ -3,132 +3,102 @@ const app = express();
 const fs = require("fs");
 app.use(express.json());
 
+function readProducts(callback, res) {
+  fs.readFile("products.json", "utf8", (err, text) => {
+    if (err) {
+      console.log(err);
+      res.status(500).send();
+    } else {
+      productArr = JSON.parse(text);
+      callback(productArr);
+    }
+  });
+}
+function writeProducts(productArr, sendData, res) {
+  fs.writeFile("products.json", JSON.stringify(productArr), (err) => {
+    if (err) {
+      console.log(err);
+      res.status(500).send();
+    } else {
+      res.send(sendData);
+    }
+  });
+}
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
 app.get("/products", (req, res) => {
-  fs.readFile("products.json", "utf8", (err, text) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send();
+  readProducts((products) => {
+    const { title } = req.query;
+    if (title) {
+      res.send(
+        products.filter((item) =>
+          item.title.toLowerCase().includes(title.toLowerCase()),
+        ),
+      );
     } else {
-      const { title } = req.query;
-      productArr = JSON.parse(text);
-      if (title) {
-        res.send(
-          productArr.filter((item) =>
-            item.title.toLowerCase().includes(title.toLowerCase()),
-          ),
-        );
-      } else {
-        res.send(productArr);
-      }
+      res.send(products);
     }
-  });
+  }, res);
 });
 
 app.get("/products/:id", (req, res) => {
-  fs.readFile("products.json", "utf8", (err, text) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send();
+  readProducts((products) => {
+    product = products.find((item) => item.id === +req.params.id);
+    if (product) {
+      res.send(product);
     } else {
-      productArr = JSON.parse(text);
-      product = productArr.find((item) => item.id === +req.params.id);
-      if (product) {
-        res.send(product);
-      } else {
-        res.status(404).send();
-      }
+      res.status(404).send();
     }
-  });
+  }, res);
 });
 
 app.post("/products", (req, res) => {
-  fs.readFile("products.json", "utf8", (err, text) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send();
-    } else {
-      productArr = JSON.parse(text);
-      newProduct = {
-        id: Math.max(...productArr.map((item) => item.id)) + 1,
-        title: req.body.title,
-        price: req.body.parse,
-        description: req.body.description,
-        category: req.body.category,
-        image: req.body.image,
-      };
-      productArr.push(newProduct);
-      fs.writeFile("products.json", JSON.stringify(productArr), (err) => {
-        if (err) {
-          console.log(err);
-          res.status(500).send();
-        } else {
-          res.send(newProduct);
-        }
-      });
-    }
-  });
+  readProducts((products) => {
+    newProduct = {
+      id: Math.max(...products.map((item) => item.id)) + 1,
+      title: req.body.title,
+      price: req.body.parse,
+      description: req.body.description,
+      category: req.body.category,
+      image: req.body.image,
+    };
+    products.push(newProduct);
+    writeProducts(products, newProduct, res);
+  }, res);
 });
 
 app.put("/products/:id", (req, res) => {
   const { id } = req.params;
   const { title, price, description, category, image } = req.body;
-  fs.readFile("products.json", "utf8", (err, text) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send();
-    } else {
-      productArr = JSON.parse(text);
-      NewProductArr = productArr.map((product) => {
-        if (product.id === +id) {
-          return {
-            id: product.id,
-            title: title ?? product.title,
-            price: price ?? product.price,
-            description: description ?? product.description,
-            category: category ?? product.category,
-            image: image ?? product.image,
-          };
-        } else {
-          return product;
-        }
-      });
+  readProducts((products) => {
+    NewProductArr = products.map((product) => {
+      if (product.id === +id) {
+        return {
+          id: product.id,
+          title: title ?? product.title,
+          price: price ?? product.price,
+          description: description ?? product.description,
+          category: category ?? product.category,
+          image: image ?? product.image,
+        };
+      } else {
+        return product;
+      }
+    });
 
-      fs.writeFile("products.json", JSON.stringify(NewProductArr), (err) => {
-        if (err) {
-          console.log(err);
-          res.status(500).send();
-        } else {
-          res.send(`{"data": "update successfully"}`);
-        }
-      });
-    }
-  });
+    writeProducts(NewProductArr, `{"data": "update successfully"}`, res);
+  }, res);
 });
 
 app.delete("/products/:id", (req, res) => {
   const { id } = req.params;
-  fs.readFile("products.json", "utf8", (err, text) => {
-    if (err) {
-      console.log(err);
-      res.status(500).send();
-    } else {
-      productArr = JSON.parse(text);
-      NewProductArr = productArr.filter((item) => item.id !== +id);
-
-      fs.writeFile("products.json", JSON.stringify(NewProductArr), (err) => {
-        if (err) {
-          console.log(err);
-          res.status(500).send();
-        } else {
-          res.send(`{"data": "delete successfully"}`);
-        }
-      });
-    }
-  });
+  readProducts((products) => {
+    NewProductArr = products.filter((item) => item.id !== +id);
+    writeProducts(NewProductArr, `{"data": "delete successfully"}`, res);
+  }, res);
 });
 
 app.listen(8000);
